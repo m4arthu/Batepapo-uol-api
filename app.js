@@ -105,14 +105,14 @@ app.post("/messages", async (req, res) => {
     // validação  de dados
     const validation = messageSchema.validate(messageData, { abortEarly: false })
     if (!user) {
-        return res.status(404).send("header user is required")
+        return res.status(422).send("header user is required")
     }
     if (validation.error) {
         console.log(validation.error.message)
         return res.status(422).send(validation.error.message)
     }
     if (users.indexOf(user) === -1) {
-        return res.status(404).send("user not registed")
+        return res.status(422).send("user not registed")
     }
 
     // postar no  db
@@ -126,9 +126,24 @@ app.post("/messages", async (req, res) => {
 
 
 app.get("/messages", async (req, res) => {
+    let messages = await db.collection("messages").find().toArray()
+    let querySchema = Joi.object({
+        limit: Joi.number().required(),
+    })
+    let validation = querySchema.validate(req.query)
+    if(validation.error ||  req.query.limit  > messages.length   || req.query.limit <= 0){
+        res.send(422)
+        return 
+    }
     try {
-        let messages = await db.collection("messages").find().toArray()
-        res.status(200).send(messages)
+        let filteredMessages = []
+        messages.forEach((mes)=>{
+            if(mes.to === "Todos"){
+                filteredMessages.push(mes)
+            }
+        })
+        console.log(req.query)
+        res.status(200).send(filteredMessages)
     } catch (err) {
         res.send(err.message)
         console.log(err.message)
@@ -151,26 +166,14 @@ app.post("/status", async (req, res) => {
             return res.status(404).send("user not registred")
         }
         let userData = await db.collection("participants").findOne({name: user})
-        await db.collection("participants").updateOne({userData}, {$set:{lastStatus:dayjs(date).format("HH:mm:ss")}})
-        res.sendStatus(200)
+        await db.collection("participants").updateOne({name:user}, {$set:{lastStatus:Date.now()}})
+        let newUserData = await db.collection("participants").findOne({name:user})
+        res.status(200).send(newUserData)
     } catch (err) {
         res.status(500).send(err.message)
     }
 })
 
-setInterval(async()=>{
-    const usersData = await db.collection("participants").find().toArray()
-    usersData.forEach(async (user) => {
-        if(dayjs(user.lastStatus).format("ss") - dayjs(Date.now()).format("ss") > 10){
-          try{
-              await db.collection("participants").deleteOne({lastStatus: usersData.lastStatus})
-              console.log("apagado")
-            } catch (err){
-                console.log(err.message)
-            }
-        }
-    })
-   
-}, 15000)
+
 
 app.listen(5000, () => console.log("server rodando na porta 5000!"))
