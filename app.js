@@ -59,7 +59,7 @@ app.post("/participants", async (req, res) => {
                 type: 'status',
                 time: dayjs(date).format("HH:mm:ss")
             })
-            res.setHeader("user",name).status(201).send("User Created")
+            res.setHeader("user", name).status(201).send("User Created")
         } else {
             res.status(409).send("usuário ja criado")
         }
@@ -131,25 +131,25 @@ app.get("/messages", async (req, res) => {
         limit: Joi.number()
     })
     let validation = querySchema.validate(req.query)
-    if(validation.error || req.query.limit <= 0){
-        return  res.sendStatus(422)
+    if (validation.error || req.query.limit <= 0) {
+        return res.sendStatus(422)
     }
     try {
         let filteredMessages = []
-        messages.forEach((mes)=>{
-            if(mes.to === "Todos" || mes.to === req.headers.user || mes.from === req.headers.user){
-                if(req.query.limit === undefined){
+        messages.forEach((mes) => {
+            if (mes.to === "Todos" || mes.to === req.headers.user || mes.from === req.headers.user) {
+                if (req.query.limit === undefined) {
                     filteredMessages.push(mes)
                 } else {
-                    if(filteredMessages.length < req.query.limit){
+                    if (filteredMessages.length < req.query.limit) {
                         filteredMessages.push(mes)
                     }
-                } 
+                }
             }
         })
         console.log(req.query)
         res.status(200).send(filteredMessages)
-      
+
     } catch (err) {
         res.send(err.message)
         console.log(err.message)
@@ -165,14 +165,14 @@ app.post("/status", async (req, res) => {
             users.push(user.name)
         })
         // validação de usuário
-        if(!user){
+        if (!user) {
             return res.status(404).send("user header is required")
         }
-        if(users.indexOf(user)=== -1){
+        if (users.indexOf(user) === -1) {
             return res.status(404).send("user not registred")
         }
-        await db.collection("participants").updateOne({name:user}, {$set:{lastStatus:Date.now()}})
-        let newUser = await db.collection("participants").findOne({name: user})       
+        await db.collection("participants").updateOne({ name: user }, { $set: { lastStatus: Date.now() } })
+        let newUser = await db.collection("participants").findOne({ name: user })
         res.sendStatus(200)
     } catch (err) {
         res.status(500).send(err.message)
@@ -180,7 +180,15 @@ app.post("/status", async (req, res) => {
 })
 
 
-
+setInterval(async () => {
+    const users = await db.collection("participants").find().toArray()
+    users.forEach(async (user) => {
+        if (dayjs(user.lastStatus).format("ss") - dayjs(Date.now()).format("ss") === 10 ||
+            dayjs(user.lastStatus).format("ss") - dayjs(Date.now()).format("ss") === -10) {
+            await db.collection("participants").deleteOne({ lastStatus: user.lastStatus })
+        }
+    })
+}, 15000)
 
 
 app.listen(5000, () => console.log("server rodando na porta 5000!"))
