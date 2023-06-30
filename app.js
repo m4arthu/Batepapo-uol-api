@@ -59,7 +59,7 @@ app.post("/participants", async (req, res) => {
                 type: 'status',
                 time: dayjs(date).format("HH:mm:ss")
             })
-            res.status(201).send("User Created")
+            res.setHeader("user",name).status(201).send("User Created")
         } else {
             res.status(409).send("usuário ja criado")
         }
@@ -128,22 +128,28 @@ app.post("/messages", async (req, res) => {
 app.get("/messages", async (req, res) => {
     let messages = await db.collection("messages").find().toArray()
     let querySchema = Joi.object({
-        limit: Joi.number().required(),
+        limit: Joi.number()
     })
     let validation = querySchema.validate(req.query)
-    if(validation.error ||  req.query.limit  > messages.length   || req.query.limit <= 0){
-        res.send(422)
-        return 
+    if(validation.error || req.query.limit <= 0){
+        return  res.sendStatus(422)
     }
     try {
         let filteredMessages = []
         messages.forEach((mes)=>{
-            if(mes.to === "Todos"){
-                filteredMessages.push(mes)
+            if(mes.to === "Todos" || mes.to === req.header.user){
+                if(req.query.limit === undefined){
+                    filteredMessages.push(mes)
+                } else {
+                    if(filteredMessages.length < req.query.limit){
+                        filteredMessages.push(mes)
+                    }
+                } 
             }
         })
         console.log(req.query)
         res.status(200).send(filteredMessages)
+      
     } catch (err) {
         res.send(err.message)
         console.log(err.message)
@@ -165,10 +171,8 @@ app.post("/status", async (req, res) => {
         if(users.indexOf(user)=== -1){
             return res.status(404).send("user not registred")
         }
-        let userData = await db.collection("participants").findOne({name: user})
         await db.collection("participants").updateOne({name:user}, {$set:{lastStatus:Date.now()}})
-        let newUserData = await db.collection("participants").findOne({name:user})
-        res.status(200).send(newUserData)
+        res.status(200)
     } catch (err) {
         res.status(500).send(err.message)
     }
