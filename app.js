@@ -137,7 +137,7 @@ app.get("/messages", async (req, res) => {
     try {
         let filteredMessages = []
         messages.forEach((mes)=>{
-            if(mes.to === "Todos" || mes.to === req.header.user){
+            if(mes.to === "Todos" || mes.to === req.headers.user || mes.from === req.headers.user){
                 if(req.query.limit === undefined){
                     filteredMessages.push(mes)
                 } else {
@@ -172,11 +172,14 @@ app.post("/status", async (req, res) => {
             return res.status(404).send("user not registred")
         }
         await db.collection("participants").updateOne({name:user}, {$set:{lastStatus:Date.now()}})
-        res.status(200)
+        let newUser = await db.collection("participants").findOne({name: user})       
+        res.sendStatus(200)
     } catch (err) {
         res.status(500).send(err.message)
     }
 })
+
+
 
 
 
