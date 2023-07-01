@@ -51,7 +51,6 @@ app.post("/participants", async (req, res) => {
                 name: userData.name,
                 lastStatus: userData.lastStatus
             })
-
             await db.collection("messages").insertOne({
                 from: name,
                 to: 'Todos',
@@ -179,16 +178,24 @@ app.post("/status", async (req, res) => {
     }
 })
 
-
-setInterval(async () => {
-    const users = await db.collection("participants").find().toArray()
-    users.forEach(async (user) => {
-        if (dayjs(user.lastStatus).format("ss") - dayjs(Date.now()).format("ss") === 10 ||
-            dayjs(user.lastStatus).format("ss") - dayjs(Date.now()).format("ss") === -10) {
-            await db.collection("participants").deleteOne({ lastStatus: user.lastStatus })
-        }
+setInterval(async () => { 
+    let users = await db.collection("participants").find().toArray()
+    let now = Date.now()
+    users.forEach(async(user)=>{
+          if(dayjs(user.lastStatus).format("ss") - dayjs(now).format("ss") < 0  ){
+            console.log("apaguei")
+            await db.collection("participants").deleteOne({name:user.name})
+            await db.collection("messages").insertOne({
+                    from: user.name,
+                    to: 'Todos',
+                    text: 'sai da sala...',
+                    type: 'status',
+                    time: now
+            })
+          }
     })
-}, 15000)
 
+
+}, 15000)
 
 app.listen(5000, () => console.log("server rodando na porta 5000!"))
